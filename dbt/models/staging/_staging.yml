@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: stg_crashes
+    description: Raw crash records with types cast and a few labels normalised. One row per crash.
+    columns:
+      - name: accident_no
+        tests: [unique, not_null]
+      - name: accident_date
+        tests: [not_null]

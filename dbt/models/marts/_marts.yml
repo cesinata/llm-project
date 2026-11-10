@@ -1,0 +1,147 @@
+version: 2
+
+models:
+  - name: crashes
+    description: >
+      One row per police-reported road crash in Victoria, Australia, from 2012 onwards.
+      Every crash in this dataset involved at least one injury or death (only a handful are
+      non-injury). Counts of people (persons_*) are different from counts of crashes (rows):
+      one fatal crash can kill several people. The most recent year is partial; filter on
+      is_complete_year = true for year-on-year comparisons.
+    columns:
+      - name: accident_no
+        description: Unique crash identifier.
+        tests: [unique, not_null]
+      - name: accident_date
+        description: Date of the crash.
+        tests: [not_null]
+      - name: accident_year
+        description: Calendar year of the crash.
+      - name: accident_month
+        description: Month number of the crash, 1 = January.
+      - name: accident_hour
+        description: Hour of day of the crash, 0-23. Police often round times to the nearest 5 minutes or hour.
+      - name: day_of_week
+        description: Day name, e.g. 'Monday'.
+      - name: is_weekend
+        description: True for Saturday or Sunday.
+      - name: is_complete_year
+        description: False for the latest year in the data, which is only partly reported.
+      - name: severity
+        description: >
+          Severity of the crash, based on the worst injury. One of 'Fatal accident',
+          'Serious injury accident', 'Other injury accident', 'Non injury accident'.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Fatal accident', 'Serious injury accident', 'Other injury accident', 'Non injury accident']
+      - name: is_fatal
+        description: True when at least one person died (severity = 'Fatal accident').
+      - name: accident_type
+        description: Basic description of what happened, e.g. 'Collision with vehicle', 'Struck Pedestrian'.
+      - name: dca_code
+        description: Definitions for Classifying Accidents code (100-781), a detailed crash-movement code.
+      - name: dca_description
+        description: Text description of the DCA code, e.g. 'REAR END(VEHICLES IN SAME LANE)'.
+      - name: light_condition
+        description: Light at the time, e.g. 'Day', 'Dusk/Dawn', 'Dark Street lights on', 'Unknown'.
+      - name: police_attended
+        description: True if police attended the scene, false if not, null if not known.
+      - name: ran_off_road
+        description: True if a vehicle ran off the road.
+      - name: road_name
+        description: Road name without its type, upper case, e.g. 'PRINCES' (road_type 'HIGHWAY').
+      - name: road_type
+        description: Road type, upper case, e.g. 'ROAD', 'STREET', 'HIGHWAY', 'FREEWAY'.
+      - name: road_geometry
+        description: Road layout, e.g. 'Not at intersection', 'T intersection', 'Cross intersection'.
+      - name: road_class
+        description: Road management class, e.g. 'Freeway', 'Arterial Highway', 'Arterial Other', 'Local Road'.
+      - name: road_divided
+        description: "'Divided' or 'Undivided'."
+      - name: speed_zone
+        description: Posted speed zone as text, e.g. '60 km/hr', 'Not known'. Prefer speed_limit_kmh for numeric filters.
+      - name: speed_limit_kmh
+        description: Numeric speed limit in km/h. Null when unknown, off-road or another limit.
+      - name: lga_name
+        description: >
+          Local government area (council), upper case, e.g. 'MELBOURNE', 'CASEY', 'GEELONG'.
+          Names in brackets such as '(FALLS CREEK)' are unincorporated areas. Moreland is
+          recorded under its current name, 'MERRI-BEK', for all years.
+      - name: region
+        description: Department of Transport and Planning region, upper case, e.g. 'INNER METRO', 'GIPPSLAND'.
+      - name: urban_area_type
+        description: Degree of urbanisation, e.g. 'MELB_URBAN', 'MELBOURNE_CBD', 'RURAL_VICTORIA'.
+      - name: metro_or_country
+        description: "'Metro' or 'Country'."
+      - name: latitude
+        description: Latitude of the crash location.
+      - name: longitude
+        description: Longitude of the crash location.
+      - name: persons_involved
+        description: Number of people involved.
+      - name: persons_killed
+        description: Number of people killed.
+      - name: persons_seriously_injured
+        description: Number of people seriously injured (admitted to hospital).
+      - name: persons_other_injured
+        description: Number of people with other (minor) injuries.
+      - name: persons_uninjured
+        description: Number of people not injured.
+      - name: pedestrians
+        description: Number of pedestrians involved.
+      - name: bicyclists
+        description: Number of bicycle riders involved.
+      - name: motorcyclists
+        description: Number of motorcycle riders involved.
+      - name: drivers
+        description: Number of drivers involved.
+      - name: passengers
+        description: Number of passengers involved.
+      - name: pedestrians_65_plus
+        description: Number of pedestrians aged 65 or over involved.
+      - name: drivers_75_plus
+        description: Number of drivers aged 75 or over involved.
+      - name: drivers_18_to_25
+        description: Number of drivers aged 18 to 25 involved.
+      - name: vehicles_involved
+        description: Number of vehicles involved.
+      - name: heavy_vehicles
+        description: Number of heavy vehicles (trucks, buses) involved.
+      - name: motorcycles
+        description: Number of motorcycles involved.
+      - name: public_transport_vehicles
+        description: Number of public transport vehicles (trams, buses, trains) involved.
+
+  - name: lga_yearly_summary
+    description: >
+      Crash and casualty totals per local government area (council) per year. Use this for
+      council-level questions; use crashes for anything needing other filters.
+    tests:
+      - unique_combination:
+          arguments:
+            columns: [lga_name, accident_year]
+    columns:
+      - name: lga_name
+        description: Local government area (council), upper case, e.g. 'MELBOURNE'.
+        tests: [not_null]
+      - name: accident_year
+        description: Calendar year.
+      - name: is_complete_year
+        description: False for the latest, partly reported year.
+      - name: crashes
+        description: Number of crashes.
+      - name: fatal_crashes
+        description: Number of crashes where at least one person died.
+      - name: serious_injury_crashes
+        description: Number of crashes where the worst injury was serious.
+      - name: persons_killed
+        description: Number of people killed.
+      - name: persons_seriously_injured
+        description: Number of people seriously injured.
+      - name: pedestrians_involved
+        description: Number of pedestrians involved in crashes.
+      - name: bicyclists_involved
+        description: Number of bicycle riders involved in crashes.
+      - name: motorcyclists_involved
+        description: Number of motorcycle riders involved in crashes.

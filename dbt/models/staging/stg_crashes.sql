@@ -1,0 +1,48 @@
+with source as (
+    select * from {{ source('raw', 'crashes') }}
+)
+
+select
+    accident_no,
+    cast(accident_date as date) as accident_date,
+    cast(accident_time as time) as accident_time,
+    day_of_week,
+    accident_type,
+    cast(dca_code as integer) as dca_code,
+    dca_code_description,
+    case light_condition when 'Unk.' then 'Unknown' else light_condition end as light_condition,
+    case police_attend when 'Yes' then true when 'No' then false end as police_attended,
+    road_geometry,
+    severity,
+    speed_zone,
+    try_cast(trim(replace(speed_zone, 'km/hr', '')) as integer) as speed_limit_kmh,
+    run_offroad = 'Yes' as ran_off_road,
+    road_name,
+    road_type,
+    -- Moreland was renamed Merri-bek in 2022; the source records both names, even in the same year.
+    case lga_name when 'MORELAND' then 'MERRI-BEK' else lga_name end as lga_name,
+    dtp_region,
+    deg_urban_name,
+    stat_div_name,
+    rma,
+    divided,
+    cast(latitude as double) as latitude,
+    cast(longitude as double) as longitude,
+    cast(total_persons as integer) as total_persons,
+    cast(fatality as integer) as fatality,
+    cast(seriousinjury as integer) as seriousinjury,
+    cast(otherinjury as integer) as otherinjury,
+    cast(noninjured as integer) as noninjured,
+    cast(pedestrian as integer) as pedestrian,
+    cast(bicyclist as integer) as bicyclist,
+    cast(motorcyclist as integer) as motorcyclist,
+    cast(driver as integer) as driver,
+    cast(passenger as integer) as passenger,
+    cast(old_ped_65_and_over as integer) as old_ped_65_and_over,
+    cast(old_driver_75_and_over as integer) as old_driver_75_and_over,
+    cast(young_driver_18_25 as integer) as young_driver_18_25,
+    cast(no_of_vehicles as integer) as no_of_vehicles,
+    cast(heavyvehicle as integer) as heavyvehicle,
+    cast(motorcycle as integer) as motorcycle,
+    cast(pt_vehicle as integer) as pt_vehicle
+from source
