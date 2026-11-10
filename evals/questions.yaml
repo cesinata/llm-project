@@ -1,0 +1,220 @@
+# Gold SQL targets the `marts` schema. Each answer is checked by running the gold and predicted
+# queries and comparing results (see src/crashsql/evaluate.py). Ratios are rounded to 1 dp.
+# Gold queries return only the columns the question asks for; extra predicted columns are allowed.
+questions:
+  - id: q01
+    difficulty: easy
+    question: How many crashes are in the dataset?
+    gold_sql: select count(*) from crashes
+
+  - id: q02
+    difficulty: easy
+    question: How many people were killed in road crashes in Victoria in 2024?
+    gold_sql: select sum(persons_killed) from crashes where accident_year = 2024
+    notes: People, not crashes.
+
+  - id: q03
+    difficulty: easy
+    question: How many fatal crashes happened in 2023?
+    gold_sql: select count(*) from crashes where is_fatal and accident_year = 2023
+
+  - id: q04
+    difficulty: easy
+    question: Which council area had the most crashes overall?
+    gold_sql: |
+      select lga_name
+      from crashes
+      group by lga_name
+      order by count(*) desc
+      limit 1
+
+  - id: q05
+    difficulty: easy
+    question: How many crashes in 2025 were pedestrians being struck?
+    gold_sql: |
+      select count(*) from crashes
+      where accident_type = 'Struck Pedestrian' and accident_year = 2025
+    notes: Exact label is 'Struck Pedestrian' (capital P).
+
+  - id: q06
+    difficulty: medium
+    question: Which day of the week has the most crashes?
+    gold_sql: |
+      select day_of_week
+      from crashes
+      group by day_of_week
+      order by count(*) desc
+      limit 1
+
+  - id: q07
+    difficulty: medium
+    question: >
+      List the 5 council areas with the most people killed from 2020 to 2024 inclusive,
+      highest first, with the number killed.
+    notes: Shepparton and Yarra Ranges tie on 39, so row order is not checked.
+    gold_sql: |
+      select lga_name, sum(persons_killed) as killed
+      from crashes
+      where accident_year between 2020 and 2024
+      group by lga_name
+      order by killed desc
+      limit 5
+
+  - id: q08
+    difficulty: medium
+    question: >
+      What percentage of crashes in 2024 happened in the dark (any dark light condition)?
+      Round to 1 decimal place.
+    gold_sql: |
+      select round(100.0 * avg(case when light_condition like 'Dark%' then 1 else 0 end), 1)
+      from crashes
+      where accident_year = 2024
+
+  - id: q09
+    difficulty: medium
+    question: How many crashes were there each year from 2015 to 2025, in year order?
+    order_matters: true
+    gold_sql: |
+      select accident_year, count(*) as crashes
+      from crashes
+      where accident_year between 2015 and 2025
+      group by accident_year
+      order by accident_year
+
+  - id: q10
+    difficulty: medium
+    question: At which hour of the day do the most fatal crashes happen?
+    gold_sql: |
+      select accident_hour
+      from crashes
+      where is_fatal
+      group by accident_hour
+      order by count(*) desc
+      limit 1
+
+  - id: q11
+    difficulty: medium
+    question: How many crashes on freeways in 2025 involved at least one heavy vehicle?
+    gold_sql: |
+      select count(*) from crashes
+      where road_class = 'Freeway' and accident_year = 2025 and heavy_vehicles > 0
+
+  - id: q12
+    difficulty: medium
+    question: >
+      What is the average number of vehicles involved in fatal crashes compared with
+      non-fatal crashes? Give one row per group, rounded to 1 decimal place.
+    gold_sql: |
+      select is_fatal, round(avg(vehicles_involved), 1) as avg_vehicles
+      from crashes
+      group by is_fatal
+
+  - id: q13
+    difficulty: medium
+    question: How many bicycle riders were involved in crashes in the City of Melbourne council area in 2024?
+    gold_sql: |
+      select sum(bicyclists) from crashes
+      where lga_name = 'MELBOURNE' and accident_year = 2024
+    notes: People (bicyclists column), not crashes. Council label is 'MELBOURNE'.
+
+  - id: q14
+    difficulty: hard
+    question: >
+      Among speed limits with at least 1,000 crashes, which speed limit has the highest
+      percentage of crashes that were fatal? Give the speed limit and the percentage to 1 decimal place.
+    gold_sql: |
+      select speed_limit_kmh, round(100.0 * avg(case when is_fatal then 1 else 0 end), 1) as pct_fatal
+      from crashes
+      where speed_limit_kmh is not null
+      group by speed_limit_kmh
+      having count(*) >= 1000
+      order by pct_fatal desc
+      limit 1
+
+  - id: q15
+    difficulty: hard
+    question: Which year had the fewest crashes?
+    gold_sql: |
+      select accident_year
+      from crashes
+      where is_complete_year
+      group by accident_year
+      order by count(*) asc
+      limit 1
+    notes: Trap. The latest year is partial and must be excluded.
+
+  - id: q16
+    difficulty: hard
+    question: >
+      Give the number of people killed in 2019, the number killed in 2024, and the change
+      (2024 minus 2019), as one row.
+    gold_sql: |
+      select
+        sum(case when accident_year = 2019 then persons_killed else 0 end) as killed_2019,
+        sum(case when accident_year = 2024 then persons_killed else 0 end) as killed_2024,
+        sum(case when accident_year = 2024 then persons_killed else 0 end)
+          - sum(case when accident_year = 2019 then persons_killed else 0 end) as change
+      from crashes
+
+  - id: q17
+    difficulty: hard
+    question: >
+      Compare Metro and Country areas: what percentage of crashes in each were fatal?
+      Give one row per area, rounded to 1 decimal place.
+    gold_sql: |
+      select metro_or_country, round(100.0 * avg(case when is_fatal then 1 else 0 end), 1) as pct_fatal
+      from crashes
+      where metro_or_country is not null
+      group by metro_or_country
+
+  - id: q18
+    difficulty: hard
+    question: Which council area had the largest increase in crashes from 2023 to 2024, and by how many?
+    gold_sql: |
+      select lga_name,
+             sum(case when accident_year = 2024 then 1 else 0 end)
+               - sum(case when accident_year = 2023 then 1 else 0 end) as increase
+      from crashes
+      where accident_year in (2023, 2024)
+      group by lga_name
+      order by increase desc
+      limit 1
+    notes: >
+      Before Moreland/Merri-bek were merged in dbt, this wrongly returned MERRI-BEK (+152)
+      because the council's crashes moved from one name to the other.
+
+  - id: q19
+    difficulty: hard
+    question: >
+      Of crashes involving at least one driver aged 18 to 25, what percentage happened on a
+      weekend? Round to 1 decimal place.
+    gold_sql: |
+      select round(100.0 * avg(case when is_weekend then 1 else 0 end), 1)
+      from crashes
+      where drivers_18_to_25 > 0
+
+  - id: q20
+    difficulty: hard
+    question: >
+      What were the 3 most common crash movement types (DCA descriptions) for crashes involving
+      a motorcycle in 2024? Give each with its count, most common first.
+    order_matters: true
+    gold_sql: |
+      select dca_description, count(*) as crashes
+      from crashes
+      where motorcycles > 0 and accident_year = 2024
+      group by dca_description
+      order by crashes desc
+      limit 3
+
+  - id: q21
+    difficulty: unanswerable
+    question: What was the average blood alcohol level of drivers in fatal crashes in 2024?
+    gold_sql: null
+    notes: The dataset has no blood alcohol data. The agent should decline.
+
+  - id: q22
+    difficulty: unanswerable
+    question: How many crashes happened in New South Wales in 2024?
+    gold_sql: null
+    notes: The dataset covers Victoria only. Answering 0 would be misleading.
