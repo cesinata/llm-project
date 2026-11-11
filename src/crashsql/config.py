@@ -42,7 +42,7 @@ class Provider:
     default_model: str
 
 
-# All three expose an OpenAI-compatible chat completions API with tool calling.
+# All of these expose an OpenAI-compatible chat completions API with tool calling.
 PROVIDERS: dict[str, Provider] = {
     "groq": Provider("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b"),
     "gemini": Provider(
@@ -50,6 +50,7 @@ PROVIDERS: dict[str, Provider] = {
         "GEMINI_API_KEY",
         "gemini-2.5-flash",
     ),
+    "anthropic": Provider("https://api.anthropic.com/v1/", "ANTHROPIC_API_KEY", "claude-haiku-4-5"),
     # qwen2.5-coder's Ollama template emits tool calls as plain text, so use the instruct model.
     "ollama": Provider("http://localhost:11434/v1", None, "qwen2.5:7b"),
 }

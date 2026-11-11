@@ -6,7 +6,7 @@ mistakes, and answers in a sentence. Every answer is scored against hand-checked
 
 - **Data:** [Victoria Road Crash Data](https://discover.data.vic.gov.au/dataset/victoria-road-crash-data),
   202,554 police-reported crashes from 2012 onwards (CC BY 4.0).
-- **Stack:** Python, DuckDB, dbt, an OpenAI-compatible LLM API (Groq, Gemini or local Ollama),
+- **Stack:** Python, DuckDB, dbt, an OpenAI-compatible LLM API (Groq, Gemini, Anthropic or local Ollama),
   pytest, GitHub Actions.
 
 ```mermaid
@@ -35,13 +35,17 @@ crashsql eval          # runs all questions in evals/questions.yaml
 
 `crashsql load --sample` uses the bundled 1,000-row sample instead, which is what CI uses.
 
-## Choosing a model (all free)
+## Choosing a model
 
 | Provider | Setting | Free limits | Notes |
 |---|---|---|---|
 | [Groq](https://console.groq.com/keys) | `LLM_PROVIDER=groq`, `GROQ_API_KEY` | ~1,000 requests and 200k tokens per day | Default model `openai/gpt-oss-120b` |
 | [Gemini](https://aistudio.google.com/apikey) | `LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | Per-model limits shown in AI Studio | Free-tier prompts may be used by Google; fine for public data |
 | [Ollama](https://ollama.com) | `LLM_PROVIDER=ollama` | Unlimited, runs locally | Default model `qwen2.5:7b` (`ollama pull qwen2.5:7b`) |
+| [Anthropic](https://console.anthropic.com/settings/keys) | `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` | Paid, prepaid credits | Default model `claude-haiku-4-5`; a full evaluation run costs well under US$1 |
+
+Groq, Gemini and Ollama are free. Anthropic is the one paid option, included as a commercial
+baseline.
 
 Set `LLM_MODEL` to try another model. One question uses roughly 5k to 10k tokens, so a full
 evaluation run can use a large share of Groq's daily token allowance.
