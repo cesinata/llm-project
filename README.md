@@ -4,10 +4,14 @@ An LLM agent that turns a question like *"Which council had the biggest rise in 
 2023 to 2024?"* into SQL, runs it against a dbt-modelled DuckDB warehouse, fixes its own
 mistakes, and answers in a sentence. Every answer is scored against hand-checked gold queries.
 
+**[Try the live demo](https://llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app/)** ·
+**[Learning path](https://cesinata.github.io/llm-project/)** (how every part works, with the
+real numbers)
+
 - **Data:** [Victoria Road Crash Data](https://discover.data.vic.gov.au/dataset/victoria-road-crash-data),
   202,554 police-reported crashes from 2012 onwards (CC BY 4.0).
-- **Stack:** Python, DuckDB, dbt, an OpenAI-compatible LLM API (Groq, Gemini, Anthropic or local Ollama),
-  pytest, GitHub Actions.
+- **Stack:** Python, DuckDB, dbt, an OpenAI-compatible LLM API (Groq, Gemini, Anthropic or local
+  Ollama), Streamlit, pytest, GitHub Actions.
 
 ```mermaid
 flowchart LR
@@ -36,6 +40,9 @@ crashsql eval          # runs all questions in evals/questions.yaml
 `crashsql load --sample` uses the bundled 1,000-row sample instead, which is what CI uses.
 
 ## Web demo
+
+**Live:** [llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app](https://llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app/),
+running Claude Haiku 4.5.
 
 `streamlit_app.py` is a small web front end: example questions, a text box, and for each answer
 the SQL, the result table, steps, tokens, latency and the agent's tool calls.
@@ -105,9 +112,29 @@ steps, tokens and latency) to `evals/results/`.
 
 ### Results
 
-| Model | Execution accuracy | Easy | Medium | Hard | Unanswerable | Avg tokens / question |
-|---|---|---|---|---|---|---|
-| _not run yet_ | | | | | | |
+| Model | Runs on | Execution accuracy | Easy (5) | Medium (8) | Hard (7) | Unanswerable (2) | Avg tokens / question | Avg seconds / question |
+|---|---|---|---|---|---|---|---|---|
+| `claude-haiku-4-5` | Anthropic API (paid, about US$0.30 per run) | **18/22 (82%)** | 5/5 | 6/8 | 5/7 | 2/2 | 12,324 | 7.0 |
+| `qwen2.5:7b` | Ollama on a MacBook | 11/22 (50%) | 4/5 | 3/8 | 4/7 | 0/2 | 7,881 | 101.5 |
+| `openai/gpt-oss-120b` | Groq free tier | _in progress_ | | | | | | |
+| `openai/gpt-oss-20b` | Groq free tier | _in progress_ | | | | | | |
+| Gemini Flash | Google AI Studio free tier | _in progress_ | | | | | | |
+
+With 22 questions, a score has a 95% margin of about ±20 percentage points, so treat small gaps
+between models as noise. Groq's free tier allows 200k tokens per model per day, about one full run.
+
+What the runs show so far:
+
+- **The small local model over-applies instructions.** The prompt says to exclude the partial
+  latest year when comparing years. `qwen2.5:7b` added that filter to 19 of its 22 queries,
+  including *"How many crashes are in the dataset?"*, where it answered 202,305 instead of
+  202,554.
+- **Declining is harder than answering.** `qwen2.5:7b` saw that blood alcohol is not in the data
+  but wrapped that reply in a `SELECT NULL ...` query, and answered the New South Wales question
+  with a count of 0. Claude Haiku declined both correctly.
+- **Plausible wrong columns.** On freeway crashes, `qwen2.5:7b` and `gpt-oss-20b` (in a partial
+  run) filtered `road_type = 'FREEWAY'` (108 crashes) instead of `road_class = 'Freeway'` (184).
+  Claude Haiku picked the right column.
 
 ## Data quality findings
 
@@ -139,8 +166,8 @@ credits). This has not been tested yet.
 
 [`docs/learning/`](docs/learning/index.md) explains every method used here, from execution
 accuracy to DuckDB, dbt, the agent loop and the evaluation, with the real numbers from this repo.
-Chapters 1 to 3 are written; the rest are outlined. Once the repo is public, the same pages are
-published as a site with GitHub Pages. To preview them locally:
+Chapters 1 to 3 are written; the rest are outlined. The same pages are published at
+[cesinata.github.io/llm-project](https://cesinata.github.io/llm-project/). To preview them locally:
 
 ```bash
 pip install -e ".[docs]"
@@ -160,9 +187,12 @@ tests/          pytest suite (no network or API key needed)
 
 ## Roadmap
 
-- [ ] Run the full evaluation with two or three models and fill in the results table
+- [x] Web demo on Streamlit Community Cloud
+- [x] Evaluate a paid model (Claude Haiku) and a local model (Qwen 2.5 7B)
+- [ ] Finish the Groq and Gemini runs and complete the results table
+- [ ] Fix the prompt issues found in the runs and re-evaluate (before and after)
+- [ ] Finish learning chapters 4 to 10
 - [ ] Score on [BIRD Mini-Dev](https://github.com/BIRD-bench/mini_dev) for a public comparison
-- [ ] TypeScript web front end with an API, deployed on AWS
 - [ ] Run the dbt models on Snowflake
 
 ## Data attribution
