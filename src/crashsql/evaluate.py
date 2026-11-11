@@ -124,7 +124,8 @@ def run_eval(agent, db: DuckDBDatabase, questions: list[Question], out_dir: Path
             }
             records.append(record)
             fh.write(json.dumps(record, default=str) + "\n")
-            print(f"{'PASS' if correct else 'FAIL'} {q.id}: {q.question}")
+            fh.flush()
+            print(f"{'PASS' if correct else 'FAIL'} {q.id}: {q.question}", flush=True)
 
     summary = summarise(records, model=getattr(agent.llm, "model", "unknown"))
     summary["records"] = str(records_path)
