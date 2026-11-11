@@ -118,8 +118,30 @@ class AgentResult:
         return data
 
 
+NUDGE = (
+    "Call the final_answer tool now, with the single SQL query that answers the question "
+    "and a short plain-English answer."
+)
+
+
 def _to_json(payload: Any) -> str:
     return json.dumps(payload, default=str)
+
+
+def _parse_typed_final_answer(content: str) -> dict | None:
+    """Recognise a reply like '{"sql": ..., "answer": ...}' written as text, optionally fenced."""
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.strip("`").removeprefix("json").strip()
+    if not text.startswith("{"):
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or "answer" not in data:
+        return None
+    return {"sql": data.get("sql"), "answer": str(data["answer"])}
 
 
 class Agent:
@@ -128,12 +150,14 @@ class Agent:
         db: Database,
         llm: ChatModel,
         max_steps: int = 12,
+        max_nudges: int = 2,
         preview_rows: int = 30,
         verbose: bool = False,
     ):
         self.db = db
         self.llm = llm
         self.max_steps = max_steps
+        self.max_nudges = max_nudges
         self.preview_rows = preview_rows
         self.verbose = verbose
 
@@ -144,6 +168,7 @@ class Agent:
             {"role": "user", "content": question},
         ]
         last_good: tuple[str, QueryResult] | None = None
+        nudges = 0
         start = time.perf_counter()
         try:
             for _ in range(self.max_steps):
@@ -155,8 +180,31 @@ class Agent:
                 tool_calls = message.tool_calls or []
 
                 if not tool_calls:
-                    # Some models answer in plain text instead of calling final_answer.
-                    result.answer = (message.content or "").strip() or None
+                    content = (message.content or "").strip()
+                    typed_answer = _parse_typed_final_answer(content)
+                    if typed_answer is not None:
+                        # The model wrote final_answer's arguments as text instead of calling it.
+                        output, ok, _ = self._run_tool("final_answer", typed_answer, result)
+                        result.trace.append(
+                            {
+                                "tool": "final_answer (as text)",
+                                "args": typed_answer,
+                                "output": output,
+                            }
+                        )
+                        if ok:
+                            break
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user", "content": f"{output}\n{NUDGE}"})
+                        continue
+                    if nudges < self.max_nudges:
+                        # gpt-oss in particular often stops with an empty reply after run_sql.
+                        nudges += 1
+                        if content:
+                            messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user", "content": NUDGE})
+                        continue
+                    result.answer = content or None
                     if last_good:
                         result.sql = last_good[0]
                         result.columns, result.rows = last_good[1].columns, last_good[1].rows

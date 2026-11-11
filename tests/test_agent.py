@@ -77,14 +77,39 @@ def test_failed_final_answer_does_not_finish(db):
     assert result.steps == 2
 
 
-def test_plain_text_answer_uses_last_good_sql(db):
+def test_empty_reply_is_nudged_to_final_answer(db):
+    count_sql = "select count(*) from crashes"
+    llm = ScriptedLLM(
+        [
+            (None, [tool_call("run_sql", 1, sql=count_sql)]),
+            ("", None),
+            (None, [tool_call("final_answer", 2, sql=count_sql, answer="1000 crashes.")]),
+        ]
+    )
+    result = Agent(db, llm).ask("How many crashes?")
+    assert result.ok
+    assert result.answer == "1000 crashes."
+    assert "final_answer" in llm.seen[2][-1]["content"]
+
+
+def test_final_answer_typed_as_json_text(db):
+    reply = '```json\n{"sql": "select count(*) from crashes", "answer": "1000 crashes."}\n```'
+    llm = ScriptedLLM([(reply, None)])
+    result = Agent(db, llm).ask("How many crashes?")
+    assert result.ok
+    assert result.rows == [(1000,)]
+    assert result.steps == 1
+
+
+def test_plain_text_answer_falls_back_to_last_good_sql(db):
     llm = ScriptedLLM(
         [
             (None, [tool_call("run_sql", 1, sql="select count(*) from crashes")]),
             ("There are 1000 crashes.", None),
+            ("There are 1000 crashes.", None),
         ]
     )
-    result = Agent(db, llm).ask("How many crashes?")
+    result = Agent(db, llm, max_nudges=1).ask("How many crashes?")
     assert result.ok
     assert result.sql == "select count(*) from crashes"
     assert result.rows == [(1000,)]
