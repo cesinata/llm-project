@@ -72,11 +72,11 @@ def match(gold, pred, order_matters=False):
 
 
 gold = [("MELBOURNE",)]
-print(match(gold, [("MELBOURNE",)]))                 # True: same answer
-print(match(gold, [("MELBOURNE", 10456)]))           # True: extra column allowed
-print(match(gold, [(10456, "MELBOURNE")]))           # True: column order ignored
-print(match(gold, [("CASEY",)]))                     # False: wrong council
-print(match([(22.1,)], [(22.06,)]))                  # True: rounded to 1 dp
+print(match(gold, [("MELBOURNE",)]))  # True: same answer
+print(match(gold, [("MELBOURNE", 10456)]))  # True: extra column allowed
+print(match(gold, [(10456, "MELBOURNE")]))  # True: column order ignored
+print(match(gold, [("CASEY",)]))  # False: wrong council
+print(match([(22.1,)], [(22.06,)]))  # True: rounded to 1 dp
 print(match([(2015,), (2016,)], [(2016,), (2015,)], order_matters=True))  # False
 ```
 
