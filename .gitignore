@@ -14,5 +14,7 @@ dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
 
+site/
+
 evals/results/*
 !evals/results/.gitkeep

@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 snowflake = ["dbt-snowflake>=1.9,<2"]
+docs = ["mkdocs-material>=9.5,<10"]
 
 [project.scripts]
 crashsql = "crashsql.cli:main"

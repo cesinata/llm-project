@@ -110,11 +110,24 @@ credits). This has not been tested yet.
 3. Set `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER` and `SNOWFLAKE_PASSWORD`, then run
    `crashsql build --target snowflake`.
 
+## Learning path
+
+[`docs/learning/`](docs/learning/index.md) explains every method used here, from execution
+accuracy to DuckDB, dbt, the agent loop and the evaluation, with the real numbers from this repo.
+Chapters 1 to 3 are written; the rest are outlined. Once the repo is public, the same pages are
+published as a site with GitHub Pages. To preview them locally:
+
+```bash
+pip install -e ".[docs]"
+mkdocs serve
+```
+
 ## Project layout
 
 ```
 src/crashsql/   agent, database layer, LLM client, evaluator, CLI
 dbt/            staging and mart models, column docs, data tests
+docs/           learning path (MkDocs site)
 evals/          questions.yaml (gold SQL) and results/
 data/sample/    1,000-row sample used by tests and CI
 tests/          pytest suite (no network or API key needed)
