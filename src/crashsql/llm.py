@@ -4,8 +4,9 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from openai import OpenAI
+from openai import BadRequestError, OpenAI
 
+from .agent import MalformedToolCallError
 from .config import PROVIDERS
 
 
@@ -42,14 +43,17 @@ class LLMClient:
         client = OpenAI(api_key=api_key, base_url=provider.base_url, max_retries=6, timeout=120)
         return cls(client, model, provider_name)
 
-    def chat(self, messages: list[dict], tools: list[dict]) -> ChatResponse:
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",
-            temperature=0,
-        )
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> ChatResponse:
+        kwargs: dict[str, Any] = {"tools": tools, "tool_choice": "auto"} if tools else {}
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model, messages=messages, temperature=0, **kwargs
+            )
+        except BadRequestError as exc:
+            # Groq returns 400 when the model emits a tool call that doesn't match the schema.
+            if "tool call validation failed" in str(exc).lower():
+                raise MalformedToolCallError(str(exc)) from exc
+            raise
         usage = response.usage
         return ChatResponse(
             message=response.choices[0].message,

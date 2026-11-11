@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from crashsql.agent import Agent
+from crashsql.agent import Agent, MalformedToolCallError
 from crashsql.llm import ChatResponse
 
 
@@ -19,10 +19,15 @@ class ScriptedLLM:
     def __init__(self, turns):
         self.turns = list(turns)
         self.seen = []
+        self.offered_tools = []
 
     def chat(self, messages, tools):
         self.seen.append(list(messages))
-        content, calls = self.turns.pop(0)
+        self.offered_tools.append(tools is not None)
+        turn = self.turns.pop(0)
+        if isinstance(turn, Exception):
+            raise turn
+        content, calls = turn
         return ChatResponse(SimpleNamespace(content=content, tool_calls=calls), 100, 20)
 
 
@@ -77,19 +82,34 @@ def test_failed_final_answer_does_not_finish(db):
     assert result.steps == 2
 
 
-def test_empty_reply_is_nudged_to_final_answer(db):
+def test_empty_reply_is_asked_for_json_answer_without_tools(db):
     count_sql = "select count(*) from crashes"
     llm = ScriptedLLM(
         [
             (None, [tool_call("run_sql", 1, sql=count_sql)]),
             ("", None),
-            (None, [tool_call("final_answer", 2, sql=count_sql, answer="1000 crashes.")]),
+            (json.dumps({"sql": count_sql, "answer": "1000 crashes."}), None),
         ]
     )
     result = Agent(db, llm).ask("How many crashes?")
     assert result.ok
     assert result.answer == "1000 crashes."
-    assert "final_answer" in llm.seen[2][-1]["content"]
+    assert result.rows == [(1000,)]
+    assert "JSON" in llm.seen[2][-1]["content"]
+    assert llm.offered_tools == [True, True, False]
+
+
+def test_malformed_tool_call_is_reported_back(db):
+    llm = ScriptedLLM(
+        [
+            MalformedToolCallError("attempted to call tool '<|channel|>'"),
+            (None, [tool_call("final_answer", 1, sql="select 1", answer="One.")]),
+        ]
+    )
+    result = Agent(db, llm).ask("q")
+    assert result.ok
+    assert result.trace[0]["tool"] == "malformed"
+    assert "malformed" in llm.seen[1][-1]["content"]
 
 
 def test_final_answer_typed_as_json_text(db):

@@ -89,7 +89,11 @@ TOOLS: list[dict] = [
 class ChatModel(Protocol):
     model: str
 
-    def chat(self, messages: list[dict], tools: list[dict]) -> Any: ...
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> Any: ...
+
+
+class MalformedToolCallError(Exception):
+    """The provider rejected a tool call the model produced (e.g. an unknown tool name)."""
 
 
 @dataclass
@@ -118,9 +122,14 @@ class AgentResult:
         return data
 
 
-NUDGE = (
-    "Call the final_answer tool now, with the single SQL query that answers the question "
-    "and a short plain-English answer."
+ANSWER_AS_JSON = (
+    'Reply with only a JSON object: {"sql": <the single SQL query that answers the question, '
+    'or null if the data cannot answer it>, "answer": <short plain-English answer>}.'
+)
+
+MALFORMED_TOOL_CALL = (
+    "Your last tool call was malformed. Call one of: list_tables, describe_table, run_sql, "
+    "final_answer."
 )
 
 
@@ -169,11 +178,18 @@ class Agent:
         ]
         last_good: tuple[str, QueryResult] | None = None
         nudges = 0
+        tools: list[dict] | None = TOOLS
         start = time.perf_counter()
         try:
             for _ in range(self.max_steps):
                 result.steps += 1
-                response = self.llm.chat(messages, TOOLS)
+                try:
+                    response = self.llm.chat(messages, tools)
+                except MalformedToolCallError as exc:
+                    result.trace.append({"tool": "malformed", "args": {}, "output": str(exc)[:500]})
+                    messages.append({"role": "user", "content": MALFORMED_TOOL_CALL})
+                    continue
+                tools = TOOLS
                 result.prompt_tokens += response.prompt_tokens
                 result.completion_tokens += response.completion_tokens
                 message = response.message
@@ -195,14 +211,18 @@ class Agent:
                         if ok:
                             break
                         messages.append({"role": "assistant", "content": content})
-                        messages.append({"role": "user", "content": f"{output}\n{NUDGE}"})
+                        messages.append({"role": "user", "content": f"{output}\n{ANSWER_AS_JSON}"})
+                        tools = None
                         continue
                     if nudges < self.max_nudges:
-                        # gpt-oss in particular often stops with an empty reply after run_sql.
+                        # gpt-oss often stops after run_sql with an empty or plain-text reply
+                        # instead of calling final_answer. Ask for the answer as JSON, with no
+                        # tools offered: forcing a tool call makes it emit invalid tool names.
                         nudges += 1
                         if content:
                             messages.append({"role": "assistant", "content": content})
-                        messages.append({"role": "user", "content": NUDGE})
+                        messages.append({"role": "user", "content": ANSWER_AS_JSON})
+                        tools = None
                         continue
                     result.answer = content or None
                     if last_good:
