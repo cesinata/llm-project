@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+.streamlit/secrets.toml
 
 data/raw/
 data/*.duckdb

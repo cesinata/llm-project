@@ -35,6 +35,31 @@ crashsql eval          # runs all questions in evals/questions.yaml
 
 `crashsql load --sample` uses the bundled 1,000-row sample instead, which is what CI uses.
 
+## Web demo
+
+`streamlit_app.py` is a small web front end: example questions, a text box, and for each answer
+the SQL, the result table, steps, tokens, latency and the agent's tool calls.
+
+```bash
+pip install -e ".[app]"
+streamlit run streamlit_app.py
+```
+
+To protect free API limits, each visitor gets 5 new questions and the app answers at most 100
+new questions a day (`DEMO_QUESTIONS_PER_SESSION`, `DEMO_QUESTIONS_PER_DAY`). Questions that were
+already answered are served from a shared cache and do not count.
+
+**Deploying on [Streamlit Community Cloud](https://share.streamlit.io) (free):** create an app
+from this repo with main file `streamlit_app.py`, and under **Advanced settings → Secrets** add:
+
+```toml
+LLM_PROVIDER = "groq"
+GROQ_API_KEY = "gsk_..."
+LLM_MODEL = "llama-3.3-70b-versatile"
+```
+
+On first start the app downloads the crash data and runs `dbt build`, which takes about a minute.
+
 ## Choosing a model
 
 | Provider | Setting | Free limits | Notes |
