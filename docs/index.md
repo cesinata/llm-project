@@ -3,7 +3,7 @@
 An LLM agent that answers plain-English questions about Victoria's road crash data by writing SQL, running it against a dbt-modelled DuckDB warehouse, fixing its own mistakes, and answering in a sentence. Every answer is scored against hand-checked gold queries.
 
 - **Code:** [github.com/cesinata/llm-project](https://github.com/cesinata/llm-project)
-- **Live demo:** coming soon
+- **Live demo:** [ask the data a question](https://llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app/)
 - **Data:** [Victoria Road Crash Data](https://discover.data.vic.gov.au/dataset/victoria-road-crash-data), 202,554 police-reported crashes from 1 January 2012 to 28 March 2026 (CC BY 4.0)
 
 ```mermaid
