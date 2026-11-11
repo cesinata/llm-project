@@ -94,43 +94,61 @@ def check_gold(db: DuckDBDatabase, questions: list[Question]) -> list[tuple[str,
     return failures
 
 
-def run_eval(agent, db: DuckDBDatabase, questions: list[Question], out_dir: Path) -> dict:
+def run_eval(
+    agent,
+    db: DuckDBDatabase,
+    questions: list[Question],
+    out_dir: Path,
+    resume: Path | None = None,
+) -> dict:
+    """Run every question. With `resume`, keep that file's finished records and rerun only
+    questions that are missing or failed on a provider error such as a rate limit."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     model = re.sub(r"[^A-Za-z0-9._-]", "_", getattr(agent.llm, "model", "unknown"))
-    records_path = out_dir / f"{stamp}_{model}.jsonl"
+    done: dict[str, dict] = {}
+    if resume:
+        records_path = resume
+        for line in resume.read_text().splitlines():
+            record = json.loads(line)
+            if not record.get("provider_error"):
+                done[record["id"]] = record
+    else:
+        stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+        records_path = out_dir / f"{stamp}_{model}.jsonl"
 
     records = []
     with records_path.open("w") as fh:
         for q in questions:
-            result = agent.ask(q.question)
-            if q.gold_sql is None:
-                correct = result.ok and result.sql is None
-            elif not result.ok or result.sql is None:
-                correct = False
+            if q.id in done:
+                record = done[q.id]
             else:
-                try:
-                    gold = db.run_query_all(q.gold_sql).rows
-                    pred = db.run_query_all(result.sql).rows
-                    correct = results_match(gold, pred, q.order_matters)
-                except Exception as exc:  # noqa: BLE001
-                    result.error = result.error or f"{type(exc).__name__}: {exc}"
-                    correct = False
-            record = {
-                "id": q.id,
-                "difficulty": q.difficulty,
-                "correct": correct,
-                **result.to_dict(),
-            }
+                record = _score(agent, db, q)
+                print(f"{'PASS' if record['correct'] else 'FAIL'} {q.id}: {q.question}", flush=True)
             records.append(record)
             fh.write(json.dumps(record, default=str) + "\n")
             fh.flush()
-            print(f"{'PASS' if correct else 'FAIL'} {q.id}: {q.question}", flush=True)
 
     summary = summarise(records, model=getattr(agent.llm, "model", "unknown"))
     summary["records"] = str(records_path)
-    (out_dir / f"{stamp}_{model}.summary.json").write_text(json.dumps(summary, indent=2))
+    records_path.with_suffix(".summary.json").write_text(json.dumps(summary, indent=2))
     return summary
+
+
+def _score(agent, db: DuckDBDatabase, q: Question) -> dict:
+    result = agent.ask(q.question)
+    if q.gold_sql is None:
+        correct = result.ok and result.sql is None
+    elif not result.ok or result.sql is None:
+        correct = False
+    else:
+        try:
+            gold = db.run_query_all(q.gold_sql).rows
+            pred = db.run_query_all(result.sql).rows
+            correct = results_match(gold, pred, q.order_matters)
+        except Exception as exc:  # noqa: BLE001
+            result.error = result.error or f"{type(exc).__name__}: {exc}"
+            correct = False
+    return {"id": q.id, "difficulty": q.difficulty, "correct": correct, **result.to_dict()}
 
 
 def summarise(records: list[dict], model: str) -> dict:
@@ -150,6 +168,7 @@ def summarise(records: list[dict], model: str) -> dict:
             for k, v in sorted(by_difficulty.items())
         },
         "self_corrected": sum(1 for r in records if r["correct"] and r["sql_errors"] > 0),
+        "provider_errors": sum(1 for r in records if r.get("provider_error")),
         "avg_steps": round(sum(r["steps"] for r in records) / n, 2),
         "avg_tokens": round(total_tokens / n),
         "total_tokens": total_tokens,

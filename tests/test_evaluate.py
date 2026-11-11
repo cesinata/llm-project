@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from crashsql.config import EVALS_DIR
 from crashsql.evaluate import check_gold, load_questions, results_match
 
@@ -45,3 +47,33 @@ def test_question_file_is_valid():
 def test_all_gold_queries_run(db):
     questions = load_questions(EVALS_DIR / "questions.yaml")
     assert check_gold(db, questions) == []
+
+
+def test_resume_reruns_only_provider_errors(db, tmp_path):
+    from crashsql.agent import AgentResult
+    from crashsql.evaluate import Question, run_eval
+
+    class FakeAgent:
+        llm = type("L", (), {"model": "fake"})()
+
+        def __init__(self, fail_on: set[str]):
+            self.fail_on, self.asked = fail_on, []
+
+        def ask(self, question):
+            self.asked.append(question)
+            if question in self.fail_on:
+                return AgentResult(question, error="RateLimitError: 429", provider_error=True)
+            return AgentResult(question, answer="ok", sql="select count(*) from crashes")
+
+    questions = [
+        Question("a", "first", "select count(*) from crashes"),
+        Question("b", "second", "select count(*) from crashes"),
+    ]
+    first = run_eval(FakeAgent({"second"}), db, questions, tmp_path)
+    assert first["provider_errors"] == 1
+
+    agent = FakeAgent(set())
+    second = run_eval(agent, db, questions, tmp_path, resume=Path(first["records"]))
+    assert agent.asked == ["second"]
+    assert second["provider_errors"] == 0
+    assert second["execution_accuracy"] == 1.0

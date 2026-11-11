@@ -75,7 +75,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     from .llm import LLMClient
 
     agent = Agent(db, LLMClient.from_env())
-    summary = run_eval(agent, db, questions, Path(args.out))
+    resume = Path(args.resume) if args.resume else None
+    summary = run_eval(agent, db, questions, Path(args.out), resume=resume)
     print(json.dumps(summary, indent=2))
     return 0
 
@@ -104,6 +105,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", default=str(EVALS_DIR / "results"))
     p.add_argument("--only", help="Comma-separated question ids.")
     p.add_argument("--gold-only", action="store_true", help="Only check the gold SQL runs.")
+    p.add_argument(
+        "--resume",
+        help="Results .jsonl to continue: reruns only missing questions and provider errors.",
+    )
     p.set_defaults(func=cmd_eval)
 
     args = parser.parse_args(argv)

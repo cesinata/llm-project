@@ -110,6 +110,7 @@ class AgentResult:
     completion_tokens: int = 0
     latency_s: float = 0.0
     error: str | None = None
+    provider_error: bool = False
     trace: list[dict] = field(default_factory=list)
 
     @property
@@ -270,6 +271,7 @@ class Agent:
                 result.error = f"No final answer after {self.max_steps} steps."
         except Exception as exc:  # noqa: BLE001 - surface provider/network errors in the result
             result.error = f"{type(exc).__name__}: {exc}"
+            result.provider_error = True
         result.latency_s = time.perf_counter() - start
         return result
 
