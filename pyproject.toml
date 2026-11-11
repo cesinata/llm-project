@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crashsql"
+version = "0.1.0"
+description = "A text-to-SQL agent that answers plain-English questions about Victorian road crash data."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.1",
+    "dbt-core>=1.9,<2",
+    "dbt-duckdb>=1.9,<2",
+    "openai>=1.40",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+snowflake = ["dbt-snowflake>=1.9,<2"]
+
+[project.scripts]
+crashsql = "crashsql.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
