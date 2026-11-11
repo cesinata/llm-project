@@ -154,13 +154,29 @@ Found while building the gold answers, and fixed or documented in dbt:
 ## Running the dbt models on Snowflake (optional)
 
 The same dbt models can run on a [Snowflake trial](https://signup.snowflake.com/) (30 days, US$400
-credits). This has not been tested yet.
+credits).
 
 1. `pip install -e ".[snowflake]"`
-2. In Snowsight, create database `CRASHSQL` and schema `RAW`, then load the CSV into a table
-   `RAW.CRASHES` with all columns as `VARCHAR`.
-3. Set `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER` and `SNOWFLAKE_PASSWORD`, then run
-   `crashsql build --target snowflake`.
+2. In a Snowsight worksheet, run [`snowflake/setup.sql`](snowflake/setup.sql) step by step: it
+   creates `CRASHSQL.RAW.CRASHES` (all columns as text) and a stage, you upload the CSV to the
+   stage, and `copy into` loads it.
+3. Set up key-pair login, since new accounts enforce MFA for passwords:
+
+   ```bash
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.ssh/snowflake_key.p8 -nocrypt
+   openssl rsa -in ~/.ssh/snowflake_key.p8 -pubout   # paste the middle lines into step 4 of setup.sql
+   ```
+
+4. Set the connection and build:
+
+   ```bash
+   export SNOWFLAKE_ACCOUNT=<org>-<account>        # Snowsight: account menu > View account details
+   export SNOWFLAKE_USER=<your user name>
+   export SNOWFLAKE_PRIVATE_KEY_PATH=~/.ssh/snowflake_key.p8
+   crashsql build --target snowflake
+   ```
+
+   This builds `CRASHSQL.STAGING` and `CRASHSQL.MARTS` and runs the same 11 data tests.
 
 ## Learning path
 

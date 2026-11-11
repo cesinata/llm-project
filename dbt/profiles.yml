@@ -9,10 +9,12 @@ crashsql:
     # Optional: run the same models on a Snowflake trial account.
     # Requires `pip install -e ".[snowflake]"` and the env vars below.
     # The raw table must first be loaded into <database>.raw.crashes (see README).
+    # Key-pair auth works with MFA-enforced accounts; it takes precedence over the password.
     snowflake:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
       user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH', '') }}"
       password: "{{ env_var('SNOWFLAKE_PASSWORD', '') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
