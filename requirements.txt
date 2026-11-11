@@ -1,0 +1,3 @@
+# Used by Streamlit Community Cloud to install the demo. Editable, because the package finds
+# dbt/ and data/ relative to the repo checkout.
+-e .[app]
