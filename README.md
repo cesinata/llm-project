@@ -116,12 +116,16 @@ steps, tokens and latency) to `evals/results/`.
 |---|---|---|---|---|---|---|---|---|
 | `claude-haiku-4-5` | Anthropic API (paid, about US$0.30 per run) | **18/22 (82%)** | 5/5 | 6/8 | 5/7 | 2/2 | 12,324 | 7.0 |
 | `qwen2.5:7b` | Ollama on a MacBook | 11/22 (50%) | 4/5 | 3/8 | 4/7 | 0/2 | 7,881 | 101.5 |
-| `openai/gpt-oss-120b` | Groq free tier | _in progress_ | | | | | | |
-| `openai/gpt-oss-20b` | Groq free tier | _in progress_ | | | | | | |
+| `openai/gpt-oss-120b` | Groq free tier | **18/22 (82%)** | 5/5 | 7/8 | 5/7 | 1/2 | 10,258 | 66.3 |
+| `openai/gpt-oss-20b` | Groq free tier | 17/22 (77%) | 5/5 | 6/8 | 5/7 | 1/2 | 11,138 | 74.2 |
 | Gemini Flash | Google AI Studio free tier | _in progress_ | | | | | | |
 
 With 22 questions, a score has a 95% margin of about ±20 percentage points, so treat small gaps
-between models as noise. Groq's free tier allows 200k tokens per model per day, about one full run.
+between models as noise. Groq's free tier allows about 200k tokens per model per day. Both Groq
+runs used a bit more than that, and the blood-alcohol question was the one left unfinished:
+`gpt-oss-120b` hit the daily token cap, and `gpt-oss-20b` sent a request larger than the
+per-minute limit. Those two cells are provider limits, not wrong answers. Per-question records are
+in `evals/results/`.
 
 What the runs show so far:
 
@@ -132,9 +136,18 @@ What the runs show so far:
 - **Declining is harder than answering.** `qwen2.5:7b` saw that blood alcohol is not in the data
   but wrapped that reply in a `SELECT NULL ...` query, and answered the New South Wales question
   with a count of 0. Claude Haiku declined both correctly.
-- **Plausible wrong columns.** On freeway crashes, `qwen2.5:7b` and `gpt-oss-20b` (in a partial
-  run) filtered `road_type = 'FREEWAY'` (108 crashes) instead of `road_class = 'Freeway'` (184).
-  Claude Haiku picked the right column.
+- **Plausible wrong columns.** On freeway crashes, `qwen2.5:7b` and `gpt-oss-20b` filtered
+  `road_type = 'FREEWAY'` (108 crashes) instead of `road_class = 'Freeway'` (184). Claude Haiku
+  and `gpt-oss-120b` picked the right column. On motorcycle crashes, `gpt-oss-120b` counted
+  `motorcyclists` (people) instead of `motorcycles` (vehicles). The top two movements matched;
+  the third was 180 crashes instead of 182.
+- **The partial-year rule is easy to over-apply.** `gpt-oss-20b` dropped 2025 from "each year
+  from 2015 to 2025" even though only 2026 is partial. Both Groq models excluded 2026 from the
+  young-driver weekend question and got 25.7% instead of 25.8%.
+- **Right numbers can still fail the check.** For fatal versus non-fatal vehicles per crash,
+  `gpt-oss-120b` returned 1.6 and 1.8, which are the right averages, but labelled the groups
+  "Fatal" and "Non-fatal" instead of returning the boolean `is_fatal` column. Execution accuracy
+  compares values, so the labels did not match.
 
 ## Data quality findings
 
@@ -206,7 +219,8 @@ tests/          pytest suite (no network or API key needed)
 
 - [x] Web demo on Streamlit Community Cloud
 - [x] Evaluate a paid model (Claude Haiku) and a local model (Qwen 2.5 7B)
-- [ ] Finish the Groq and Gemini runs and complete the results table
+- [x] Groq runs for `gpt-oss-120b` (18/22) and `gpt-oss-20b` (17/22)
+- [ ] Gemini run, to finish the results table
 - [ ] Fix the prompt issues found in the runs and re-evaluate (before and after)
 - [ ] Finish learning chapters 4 to 10
 - [ ] Score on [BIRD Mini-Dev](https://github.com/BIRD-bench/mini_dev) for a public comparison

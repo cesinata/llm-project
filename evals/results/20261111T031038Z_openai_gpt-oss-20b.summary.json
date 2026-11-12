@@ -1,0 +1,30 @@
+{
+  "model": "openai/gpt-oss-20b",
+  "questions": 22,
+  "execution_accuracy": 0.773,
+  "by_difficulty": {
+    "easy": {
+      "n": 5,
+      "accuracy": 1.0
+    },
+    "hard": {
+      "n": 7,
+      "accuracy": 0.714
+    },
+    "medium": {
+      "n": 8,
+      "accuracy": 0.75
+    },
+    "unanswerable": {
+      "n": 2,
+      "accuracy": 0.5
+    }
+  },
+  "self_corrected": 0,
+  "provider_errors": 1,
+  "avg_steps": 5.5,
+  "avg_tokens": 11138,
+  "total_tokens": 245039,
+  "avg_latency_s": 74.2,
+  "records": "evals/results/20261111T031038Z_openai_gpt-oss-20b.jsonl"
+}
