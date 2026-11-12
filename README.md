@@ -170,7 +170,8 @@ credits).
 4. Set the connection and build:
 
    ```bash
-   export SNOWFLAKE_ACCOUNT=<org>-<account>        # Snowsight: account menu > View account details
+   export SNOWFLAKE_ACCOUNT=<account locator>      # from `select current_account();`
+   export SNOWFLAKE_HOST=<org>-<account>.snowflakecomputing.com
    export SNOWFLAKE_USER=<your user name>
    export SNOWFLAKE_PRIVATE_KEY_PATH=~/.ssh/snowflake_key.p8
    crashsql build --target snowflake

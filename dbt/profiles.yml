@@ -13,6 +13,9 @@ crashsql:
     snowflake:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      # Optional. Set this when key-pair login reports "JWT token is invalid":
+      # the token must carry the account locator, while the connection uses the org host.
+      host: "{{ env_var('SNOWFLAKE_HOST', '') }}"
       user: "{{ env_var('SNOWFLAKE_USER', '') }}"
       private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH', '') }}"
       password: "{{ env_var('SNOWFLAKE_PASSWORD', '') }}"
