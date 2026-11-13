@@ -207,7 +207,7 @@ to create the raw table and stage, load the CSV, set the Snowflake env vars from
 
 [`docs/learning/`](docs/learning/index.md) explains every method used here, from execution
 accuracy to DuckDB, dbt, the agent loop and the evaluation, with the real numbers from this repo.
-Chapters 1 to 3 are written; the rest are outlined. The same pages are published at
+All ten chapters plus the optional Snowflake page are written. The same pages are published at
 [cesinata.github.io/llm-project](https://cesinata.github.io/llm-project/). To preview them locally:
 
 ```bash
@@ -232,9 +232,9 @@ tests/          pytest suite (no network or API key needed)
 - [x] Evaluate a paid model (Claude Haiku) and a local model (Qwen 2.5 7B)
 - [x] Groq runs for `gpt-oss-120b` (18/22) and `gpt-oss-20b` (17/22)
 - [x] Gemini tried on the free tier and dropped (daily quota + thought signatures)
+- [x] Learning path (chapters 1 to 10 and optional Snowflake)
 - [ ] Finish Snowflake staging and marts (`crashsql build --target snowflake`)
 - [ ] Tighten the system prompt from evaluation findings and re-run a before/after comparison
-- [ ] Finish learning chapters 4 to 10
 - [ ] Score on [BIRD Mini-Dev](https://github.com/BIRD-bench/mini_dev) for a public comparison
 
 ## Data attribution

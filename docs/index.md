@@ -18,12 +18,18 @@ flowchart LR
 
 ## Learning path
 
-The [learning path](learning/index.md) explains every method and tool used here, from the metric to the warehouse to the agent loop, with the real numbers from this repo. It is written for two readers: me, to make sure I understand every part, and anyone reviewing the project who wants to see why it was built this way.
+The [learning path](learning/index.md) explains every method and tool used here, from the metric to the warehouse to the agent loop, with the real numbers from this repo.
 
-| # | Chapter | Status |
-|---|---|---|
-| 1 | [Text-to-SQL and execution accuracy](learning/01_text_to_sql_and_execution_accuracy.md) | Written |
-| 2 | [DuckDB and columnar analytics](learning/02_duckdb_and_columnar_analytics.md) | Written |
-| 3 | [dbt models, tests and docs](learning/03_dbt_models_tests_and_docs.md) | Written |
-| 4-10 | Schema linking, tool calling, guardrails, evaluation design, model comparison, error analysis, testing | Coming soon |
-| + | Optional: Snowflake as a second warehouse | Coming soon |
+| # | Chapter |
+|---|---|
+| 1 | [Text-to-SQL and execution accuracy](learning/01_text_to_sql_and_execution_accuracy.md) |
+| 2 | [DuckDB and columnar analytics](learning/02_duckdb_and_columnar_analytics.md) |
+| 3 | [dbt models, tests and docs](learning/03_dbt_models_tests_and_docs.md) |
+| 4 | [Schema linking](learning/04_schema_linking.md) |
+| 5 | [Tool calling and the agent loop](learning/05_tool_calling_and_the_agent_loop.md) |
+| 6 | [SQL guardrails](learning/06_sql_guardrails.md) |
+| 7 | [Designing the evaluation](learning/07_designing_the_evaluation.md) |
+| 8 | [Comparing models](learning/08_comparing_models.md) |
+| 9 | [Error analysis](learning/09_error_analysis.md) |
+| 10 | [Testing LLM code](learning/10_testing_llm_code.md) |
+| + | [Optional: Snowflake as a second warehouse](learning/X1_optional_snowflake.md) |
