@@ -72,7 +72,7 @@ On first start the app downloads the crash data and runs `dbt build`, which take
 | Provider | Setting | Free limits | Notes |
 |---|---|---|---|
 | [Groq](https://console.groq.com/keys) | `LLM_PROVIDER=groq`, `GROQ_API_KEY` | ~1,000 requests and 200k tokens per day | Default model `openai/gpt-oss-120b` |
-| [Gemini](https://aistudio.google.com/apikey) | `LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | Per-model limits shown in AI Studio | Free-tier prompts may be used by Google; fine for public data |
+| [Gemini](https://aistudio.google.com/apikey) | `LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | Tried, then dropped (see Results) | Free Flash models allow only about 20 requests a day |
 | [Ollama](https://ollama.com) | `LLM_PROVIDER=ollama` | Unlimited, runs locally | Default model `qwen2.5:7b` (`ollama pull qwen2.5:7b`) |
 | [Anthropic](https://console.anthropic.com/settings/keys) | `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` | Paid, prepaid credits | Default model `claude-haiku-4-5`; a full evaluation run costs well under US$1 |
 
@@ -118,7 +118,7 @@ steps, tokens and latency) to `evals/results/`.
 | `qwen2.5:7b` | Ollama on a MacBook | 11/22 (50%) | 4/5 | 3/8 | 4/7 | 0/2 | 7,881 | 101.5 |
 | `openai/gpt-oss-120b` | Groq free tier | **18/22 (82%)** | 5/5 | 7/8 | 5/7 | 1/2 | 10,258 | 66.3 |
 | `openai/gpt-oss-20b` | Groq free tier | 17/22 (77%) | 5/5 | 6/8 | 5/7 | 1/2 | 11,138 | 74.2 |
-| Gemini Flash | Google AI Studio free tier | _in progress_ | | | | | | |
+| Gemini Flash (`gemini-3.8-flash`, `gemini-3.5-flash`) | Google AI Studio free tier | **dropped** | | | | | | |
 
 With 22 questions, a score has a 95% margin of about ±20 percentage points, so treat small gaps
 between models as noise. Groq's free tier allows about 200k tokens per model per day. Both Groq
@@ -126,6 +126,28 @@ runs used a bit more than that, and the blood-alcohol question was the one left 
 `gpt-oss-120b` hit the daily token cap, and `gpt-oss-20b` sent a request larger than the
 per-minute limit. Those two cells are provider limits, not wrong answers. Per-question records are
 in `evals/results/`.
+
+**Gemini was tried and then dropped.** The OpenAI-compatible Gemini endpoint works for a single
+chat call, but it did not finish a full evaluation on the free tier for three reasons:
+
+1. **The free daily quota is too small for an agent loop.** Current free Flash models allow about
+   5 requests a minute and about 20 requests a day per project ([rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)).
+   One `crashsql` question usually needs several tool calls (`list_tables`, `describe_table`,
+   `run_sql`, `final_answer`), so 22 questions need far more than 20 requests. Failed retries
+   from earlier 404 and 503 responses used up the daily bucket, and later calls returned **429**.
+2. **Temporary overload.** The first full attempt returned **503** on every question; Google
+   documents that as temporary unavailability, and our client waits and retries until the quota
+   is spent.
+3. **Tool-calling history needs a Gemini-only field.** Gemini 3 and later attach a
+   `thought_signature` to each function call and reject the next turn with **400** if that
+   signature is missing from the replayed history ([thought signatures](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking/thought-signatures)).
+   This agent rebuilds tool calls in the OpenAI shape and drops that field, which is why
+   `gemini-3.5-flash` failed after the first tool step even when quota remained. Fixing it means
+   preserving provider `extra_content` on every tool call, which is Gemini-specific work we did
+   not take on for this portfolio.
+
+Paid Gemini billing would raise the quota, but the thought-signature change would still be
+required for a fair multi-step evaluation. Claude Haiku covers the commercial baseline instead.
 
 What the runs show so far:
 
@@ -169,28 +191,48 @@ Found while building the gold answers, and fixed or documented in dbt:
 The same dbt models can run on a [Snowflake trial](https://signup.snowflake.com/) (30 days, US$400
 credits).
 
-1. `pip install -e ".[snowflake]"`
-2. In a Snowsight worksheet, run [`snowflake/setup.sql`](snowflake/setup.sql) step by step: it
-   creates `CRASHSQL.RAW.CRASHES` (all columns as text) and a stage, you upload the CSV to the
-   stage, and `copy into` loads it.
-3. Set up key-pair login, since new accounts enforce MFA for passwords:
+**Current status.** The trial account is set up. `CRASHSQL.RAW.CRASHES` holds all **202,554**
+rows (loaded from the stage with `copy into`), key-pair login is registered for the local user,
+and the dbt Snowflake target accepts a separate account locator and organization host
+(`SNOWFLAKE_ACCOUNT` + `SNOWFLAKE_HOST`). The remaining step is to run `crashsql build --target
+snowflake` so dbt creates `CRASHSQL.STAGING` and `CRASHSQL.MARTS` and runs the 11 data tests.
+
+![Snowflake raw.crashes metadata: 202,554 rows, 87 councils, 2012-01-01 to 2026-03-28](docs/images/snowflake-raw-crashes.png)
+
+*Snowsight check on the loaded raw table: `CRASHSQL.RAW.CRASHES`, 202,554 rows, 87 councils,
+earliest crash 2012-01-01, latest 2026-03-28.*
+
+**Still to do.**
+
+1. Finish the dbt build from the Mac (after `git pull`):
 
    ```bash
-   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.ssh/snowflake_key.p8 -nocrypt
-   openssl rsa -in ~/.ssh/snowflake_key.p8 -pubout   # paste the middle lines into step 4 of setup.sql
-   ```
-
-4. Set the connection and build:
-
-   ```bash
-   export SNOWFLAKE_ACCOUNT=<account locator>      # from `select current_account();`
-   export SNOWFLAKE_HOST=<org>-<account>.snowflakecomputing.com
-   export SNOWFLAKE_USER=<your user name>
-   export SNOWFLAKE_PRIVATE_KEY_PATH=~/.ssh/snowflake_key.p8
+   export SNOWFLAKE_ACCOUNT=CB42014
+   export SNOWFLAKE_HOST=otqwosv-mz56304.snowflakecomputing.com
+   export SNOWFLAKE_USER=cesnatsya
+   export SNOWFLAKE_PRIVATE_KEY_PATH=$HOME/.ssh/snowflake_key.p8
+   export SNOWFLAKE_WAREHOUSE=SNOWFLAKE_LEARNING_WH
    crashsql build --target snowflake
    ```
 
-   This builds `CRASHSQL.STAGING` and `CRASHSQL.MARTS` and runs the same 11 data tests.
+   The last line should read `PASS=14`.
+
+2. Screenshot that terminal line, and this query (first row should be **HUME, 59**):
+
+   ```sql
+   select lga_name,
+          sum(case when accident_year = 2024 then 1 else 0 end)
+            - sum(case when accident_year = 2023 then 1 else 0 end) as increase
+   from crashsql.marts.crashes
+   where accident_year in (2023, 2024)
+   group by lga_name
+   order by increase desc
+   limit 5;
+   ```
+
+Setup notes (already done once): `pip install -e ".[snowflake]"`, run
+[`snowflake/setup.sql`](snowflake/setup.sql), upload the CSV to `CRASH_STAGE`, and register the
+RSA public key on the lowercase username with `alter user "cesnatsya" ...`.
 
 ## Learning path
 
@@ -220,11 +262,11 @@ tests/          pytest suite (no network or API key needed)
 - [x] Web demo on Streamlit Community Cloud
 - [x] Evaluate a paid model (Claude Haiku) and a local model (Qwen 2.5 7B)
 - [x] Groq runs for `gpt-oss-120b` (18/22) and `gpt-oss-20b` (17/22)
-- [ ] Gemini run, to finish the results table
+- [x] Gemini tried on the free tier and dropped (daily quota + thought signatures)
+- [ ] Finish the Snowflake dbt build and add screenshots (raw table is already loaded)
 - [ ] Fix the prompt issues found in the runs and re-evaluate (before and after)
-- [ ] Finish learning chapters 4 to 10
+- [ ] Finish learning chapters 4 to 10 (1 to 3 written; 4 to 10 and Snowflake are outlines)
 - [ ] Score on [BIRD Mini-Dev](https://github.com/BIRD-bench/mini_dev) for a public comparison
-- [ ] Run the dbt models on Snowflake
 
 ## Data attribution
 
