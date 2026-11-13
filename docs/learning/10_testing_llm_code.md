@@ -1,20 +1,93 @@
 # 10. Testing LLM code
 
-!!! note "Coming soon"
-    This chapter is planned but not written yet. The outline below is what it will cover.
-
 Language model output changes from run to run, and calling a real model in tests is slow, costs money and needs a key. Most of an agent can still be tested the normal way.
 
-## What it will cover
+## Intuition
 
-- **Intuition:** separate what is deterministic (the database layer, the guardrails, the scorer, the agent's control flow) from what is not (the model). Test the first with ordinary unit tests, and test the second with the evaluation set.
-- **The math:** none needed. A short note on why tests that call a real model are flaky.
-- **Toy implementation:** a scripted fake model that returns a fixed sequence of tool calls, driving the agent through a full question.
-- **In this project:**
-    - The 36 pytest tests in `tests/`, which need no network or API key.
-    - `tests/test_agent.py`: the fake model covers the normal path, SQL errors and retries, a model that stops without `final_answer`, answers typed as JSON, and malformed tool calls.
-    - `tests/test_db.py`: the guardrails from chapter 6.
-    - `tests/test_evaluate.py`: the matching rules from chapter 1 (extra columns, column order, rounding, row order), the question file, and `--resume`.
-    - The GitHub Actions workflow in `.github/workflows/ci.yml`: lint with ruff, build the sample warehouse with dbt (models and data tests), check every gold query runs, then run pytest.
-- **Failure modes:** tests that pass because the fake model is too polite, snapshot tests on model wording, CI that needs secrets, skipping data tests because the unit tests pass.
-- **Self-test.**
+- Split the system into deterministic pieces and a non-deterministic piece.
+- Deterministic: SQL guardrails, result matching, dbt tests, the agent's control flow with a fake model.
+- Non-deterministic: the live model. Measure that with the evaluation set, not with flaky unit tests.
+- CI should run without secrets and without the network.
+
+## The math
+
+None required. The practical point is variance: if a test calls a live model, the same assertion can pass on Tuesday and fail on Wednesday with no code change. That makes the suite a poor regression signal. Keep live calls in evaluation jobs you choose to run, not in the default PR check.
+
+## Toy implementation
+
+A scripted model driving the agent loop (same idea as `tests/test_agent.py`):
+
+```python
+from types import SimpleNamespace
+import json
+
+
+def tool_call(name, i, **args):
+    return SimpleNamespace(
+        id=f"call_{i}",
+        function=SimpleNamespace(name=name, arguments=json.dumps(args)),
+    )
+
+
+class ScriptedLLM:
+    model = "scripted"
+
+    def __init__(self, turns):
+        self.turns = list(turns)
+
+    def chat(self, messages, tools):
+        content, calls = self.turns.pop(0)
+        return SimpleNamespace(
+            message=SimpleNamespace(content=content, tool_calls=calls),
+            prompt_tokens=10,
+            completion_tokens=5,
+        )
+
+
+# Sequence: bad SQL, then repaired SQL, then final_answer.
+turns = [
+    (None, [tool_call("run_sql", 1, sql="select count(*) from crash")]),
+    (None, [tool_call("run_sql", 2, sql="select count(*) from crashes")]),
+    (None, [tool_call("final_answer", 3, sql="select count(*) from crashes", answer="202554")]),
+]
+```
+
+Wire that object in place of `LLMClient.from_env()` and assert on `result.ok`, `result.sql_errors`, and the tool messages the fake model saw.
+
+## In this project
+
+The suite collects **39** tests with no API key:
+
+| File | What it covers |
+|---|---|
+| `tests/test_db.py` | Guardrails, locked settings, docs/labels on describe, council rename |
+| `tests/test_evaluate.py` | Matcher rules, question file, gold SQL, `--resume` |
+| `tests/test_agent.py` | Happy path, unsafe SQL, empty reply → JSON nudge, malformed tools, max steps, provider errors |
+| `tests/test_streamlit_app.py` | Demo UI with the scripted model: answer, example button, session limit |
+
+`.github/workflows/ci.yml` runs ruff, `crashsql load --sample`, `crashsql build`, `crashsql eval --gold-only`, then pytest. The sample warehouse keeps CI fast and offline.
+
+## Failure modes
+
+- A fake model that always behaves; real models will not.
+- Snapshot tests on English wording from a live model.
+- CI that needs provider secrets to go green.
+- Skipping dbt data tests because unit tests passed.
+- Asserting on exact SQL strings instead of behaviour (result rows, error types, control flow).
+
+## Self-test
+
+1. What belongs in pytest here, and what belongs in `crashsql eval`?
+2. Why does CI use `--sample`?
+3. How do you test "the agent retries after a SQL error" without Groq?
+4. Why is gold-only evaluation part of CI?
+
+<details>
+<summary>Answers</summary>
+
+1. Pytest: deterministic code and scripted control flow. Eval: live model quality on the gold set.
+2. So the warehouse builds quickly without downloading the full CSV or needing network access in the critical path beyond what the workflow already allows.
+3. Script a fake model that returns a bad `run_sql`, then a good one, then `final_answer`, and assert `sql_errors >= 1` and a correct final result.
+4. To catch broken or drifting gold SQL before a model run wastes time or looks unfairly bad.
+
+</details>

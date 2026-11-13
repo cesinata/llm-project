@@ -1,20 +1,81 @@
 # 7. Designing the evaluation
 
-!!! note "Coming soon"
-    This chapter is planned but not written yet. The outline below is what it will cover.
+Chapter 1 defined how one answer is scored. This chapter is about choosing the questions. A small evaluation set only helps if each question can fail for a clear reason.
 
-Chapter 1 defined how one answer is scored. This chapter is about choosing the questions: a small evaluation set is only useful if each question tests something specific.
+## Intuition
 
-## What it will cover
+- An evaluation set is a list of hypotheses: "the model will confuse people with crashes", "it will miss the council rename", "it will invent a blood-alcohol column".
+- Easy questions check that the plumbing works. Hard questions check the traps. Unanswerable questions check that the agent can refuse.
+- If every question is a plain `COUNT(*)`, a weak model looks strong.
 
-- **Intuition:** an evaluation set is a set of hypotheses about where the agent might fail. Each question should be able to fail for one clear reason.
-- **The math:** how many questions are needed to tell two models apart (standard error and the width of a confidence interval as $N$ grows), and why per-difficulty scores on 5 to 8 questions are very noisy.
-- **Toy implementation:** simulate two models with known accuracy and see how often a 22-question set ranks them the wrong way round.
-- **In this project:**
-    - The 22 questions in `evals/questions.yaml`: 5 easy, 8 medium, 7 hard, 2 unanswerable.
-    - Trap questions and what each one tests: q02 (people vs crashes), q05 and q13 (exact labels), q15 (the partial year), q18 (the renamed council), q21 and q22 (questions the data cannot answer).
-    - How each gold query was checked by hand, and why gold queries return only the columns asked for.
-    - `order_matters` and the q07 tie.
-    - Recording every answer as it finishes, and keeping provider errors separate from model errors (`--resume`).
-- **Failure modes:** questions that only have one wording, gold answers that drift when the data is refreshed, evaluating on the same questions used to tune the prompt, ambiguous questions.
-- **Self-test.**
+## The math
+
+Execution accuracy on $N$ questions is a proportion $\hat p$. A rough standard error is:
+
+$$\mathrm{SE}(\hat p) \approx \sqrt{\hat p(1-\hat p)/N}$$
+
+For $\hat p = 0.82$ and $N = 22$, $\mathrm{SE} \approx 0.08$, so a 95% interval is about $\pm 0.16$. For $\hat p = 0.5$, it is about $\pm 0.21$. Gaps of a few points between models are noise on this set. Per-difficulty scores on 5 to 8 questions are even noisier; treat them as diagnostics, not league tables.
+
+## Toy implementation
+
+How often a 22-question set ranks two models the wrong way round when their true accuracies differ by 10 points:
+
+```python
+import random
+
+
+def run(p, n=22):
+    return sum(random.random() < p for _ in range(n))
+
+
+wrong = 0
+trials = 20_000
+for _ in range(trials):
+    a, b = run(0.80), run(0.70)
+    if a < b:
+        wrong += 1
+print(f"P(weaker model looks better) ≈ {wrong / trials:.3f}")
+```
+
+The exact printout varies with the seed, but the probability is not small. That is why the README warns about the margin on 22 questions.
+
+## In this project
+
+`evals/questions.yaml` holds 22 gold items: 5 easy, 8 medium, 7 hard, 2 unanswerable.
+
+| Id | Trap | What it tests |
+|---|---|---|
+| q02 | "people killed" | Sum `persons_killed`, do not count fatal rows |
+| q05, q13 | Exact labels | `'Struck Pedestrian'`, `'MELBOURNE'` |
+| q07 | Tie on deaths | Row order not checked when ranks tie |
+| q09 | Year list | Inclusive years; `order_matters` |
+| q15 | Fewest crashes | Exclude the partial latest year |
+| q18 | Council rename | Moreland / Merri-bek merge |
+| q21, q22 | Out of scope | Blood alcohol; New South Wales |
+
+Gold SQL returns only the columns the question asks for, so extra predicted columns can be ignored by the matcher. Every gold query is re-run in CI with `crashsql eval --gold-only`. Per-question records are written as each question finishes. Provider errors (rate limits, overloaded APIs) are flagged separately, and `--resume` reruns only those.
+
+## Failure modes
+
+- Ambiguous questions with two fair SQL readings (freeway as `road_type` vs `road_class`).
+- Gold answers that drift when the public CSV is refreshed.
+- Tuning the prompt on the same 22 questions you report.
+- Counting provider failures as model failures.
+- Only one wording per skill, so a single unlucky parse sinks the score.
+
+## Self-test
+
+1. Why are unanswerable questions part of the set?
+2. Roughly how wide is a 95% interval for 18/22?
+3. Why does q07 turn off row-order checking?
+4. What is the difference between a wrong answer and a `provider_error`?
+
+<details>
+<summary>Answers</summary>
+
+1. To check that the agent can refuse instead of inventing a filter that returns 0.
+2. About $\pm 0.16$ using the normal approximation above.
+3. Two councils tie on deaths, so `ORDER BY ... LIMIT 5` row order is not unique.
+4. A wrong answer is scored against gold. A provider error means the model never got a fair turn (quota, HTTP 429/503, and similar).
+
+</details>
