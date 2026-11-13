@@ -11,7 +11,7 @@ The same agent and the same questions, run with different language models: free 
 - **The math:** a paired comparison. Both models answer the same 22 questions, so compare them question by question (McNemar's test) rather than comparing two percentages. Cost per correct answer.
 - **Toy implementation:** McNemar's test on two lists of right/wrong results, in a few lines of Python.
 - **In this project:**
-    - The results table from the README, for the models run: `openai/gpt-oss-120b` and `openai/gpt-oss-20b` on Groq, `gemini-2.5-flash`, `claude-haiku-4-5`, and `qwen2.5:7b` (and possibly `qwen2.5:14b`) on Ollama.
+    - The results table from the README: `claude-haiku-4-5`, `openai/gpt-oss-120b` and `openai/gpt-oss-20b` on Groq, and `qwen2.5:7b` on Ollama. Gemini Flash was tried on the free tier and dropped (about 20 requests a day, plus Gemini 3 thought signatures that this OpenAI-shaped agent does not replay).
     - Accuracy by difficulty, average steps, tokens, latency and self-corrections for each.
     - Free-tier limits in practice: Groq's 200k tokens per model per day, and what one full run uses.
     - What a small local model gets right and wrong compared with a large hosted one.
