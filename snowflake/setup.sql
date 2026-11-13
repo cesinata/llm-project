@@ -78,7 +78,5 @@ create or replace stage crash_stage file_format = crash_csv;
 copy into crashes from @crash_stage file_format = (format_name = crash_csv);
 select count(*) from crashes;
 
--- 4. Optional, for key-pair login from dbt (see README). Paste the public key without its
---    BEGIN/END lines, then check that RSA_PUBLIC_KEY_FP is set.
--- alter user <your_user> set rsa_public_key = 'MIIBIjANBgkqh...';
--- desc user <your_user>;
+-- 4. Optional: register an RSA public key for key-pair auth from dbt.
+-- alter user identifier($my_user) set rsa_public_key = '<public_key>';
