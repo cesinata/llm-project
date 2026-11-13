@@ -1,0 +1,38 @@
+/* Ocean Graphite — slate primary, cyan accent */
+:root {
+  --md-primary-fg-color: #1e3a5f;
+  --md-primary-fg-color--light: #2f5278;
+  --md-primary-fg-color--dark: #14253d;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+  --md-accent-fg-color: #06b6d4;
+  --md-accent-fg-color--transparent: #06b6d41a;
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2f5278;
+  --md-primary-fg-color--light: #3d6a96;
+  --md-primary-fg-color--dark: #1e3a5f;
+  --md-accent-fg-color: #22d3ee;
+  --md-accent-fg-color--transparent: #22d3ee1a;
+}
+
+/* Soft page wash so the slate header is not the only color */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #f8fafc;
+  --md-default-bg-color--light: #f8fafc;
+  --md-default-bg-color--lighter: #f1f5f9;
+  --md-default-bg-color--lightest: #e2e8f0;
+  --md-typeset-a-color: #0891b2;
+}
+
+[data-md-color-scheme="default"] .md-typeset h1,
+[data-md-color-scheme="default"] .md-typeset h2 {
+  color: #1e3a5f;
+}
+
+[data-md-color-scheme="default"] .md-typeset a:hover {
+  color: #06b6d4;
+}
