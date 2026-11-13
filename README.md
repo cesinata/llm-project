@@ -197,21 +197,10 @@ and the dbt Snowflake target accepts a separate account locator and organization
 (`SNOWFLAKE_ACCOUNT` + `SNOWFLAKE_HOST`). The remaining step is to run `crashsql build --target
 snowflake` so dbt creates `CRASHSQL.STAGING` and `CRASHSQL.MARTS` and runs the 11 data tests.
 
-To show that the raw table is already in Snowflake, run this in a Snowsight worksheet (with
-warehouse `SNOWFLAKE_LEARNING_WH` selected) and screenshot the result:
+![Snowflake raw.crashes metadata: 202,554 rows, 87 councils, 2012-01-01 to 2026-03-28](docs/images/snowflake-raw-crashes.png)
 
-```sql
-select
-  current_database() as database,
-  current_schema() as schema,
-  count(*) as rows,
-  count(distinct lga_name) as councils,
-  min(accident_date) as earliest,
-  max(accident_date) as latest
-from crashsql.raw.crashes;
-```
-
-Expected: `CRASHSQL`, `RAW`, **202554** rows, dozens of councils, earliest around 2012-01-01.
+*Snowsight check on the loaded raw table: `CRASHSQL.RAW.CRASHES`, 202,554 rows, 87 councils,
+earliest crash 2012-01-01, latest 2026-03-28.*
 
 **Still to do.**
 
