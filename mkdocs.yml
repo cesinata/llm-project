@@ -6,6 +6,9 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  font:
+    text: Plus Jakarta Sans
+    code: JetBrains Mono
   features:
     - navigation.sections
     - navigation.footer
@@ -13,13 +16,20 @@ theme:
     - search.highlight
   palette:
     - scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Dark mode
     - scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
