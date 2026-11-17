@@ -44,6 +44,10 @@ crashsql eval          # runs all questions in evals/questions.yaml
 **Live:** [llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app](https://llm-project-8jgwjxvnyd8kk5lj5b9xg5.streamlit.app/),
 running Claude Haiku 4.5.
 
+![Streamlit demo: Ask Victoria's road crash data](docs/images/streamlit-demo.png)
+
+*Live demo: example questions, free-text ask box, and session question limit.*
+
 `streamlit_app.py` is a small web front end: example questions, a text box, and for each answer
 the SQL, the result table, steps, tokens, latency and the agent's tool calls.
 
